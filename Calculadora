@@ -1,0 +1,299 @@
+from flask import Flask, request, render_template_string
+
+app = Flask(__name__)
+
+
+class Calculadora:
+
+    def __init__(self):
+        self.expresion = ""
+
+    def agregar(self, valor):
+        self.expresion += str(valor)
+
+    def borrar(self):
+        self.expresion = self.expresion[:-1]
+
+    def limpiar(self):
+        self.expresion = ""
+
+    def calcular(self):
+
+        try:
+            return str(eval(self.expresion))
+
+        except:
+            return "Error"
+
+
+calculadora = Calculadora()
+
+historial = []
+mostrar_historial = False
+ultimo_fue_resultado = False
+
+
+HTML = """
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Calculadora Flask</title>
+
+<style>
+
+body{
+    background:#f4f4f4;
+    font-family:Arial, Helvetica, sans-serif;
+    display:flex;
+    justify-content:center;
+    margin-top:40px;
+}
+
+.calculadora{
+    width:420px;
+    background:white;
+    border-radius:15px;
+    padding:15px;
+    box-shadow:0 0 20px rgba(0,0,0,.15);
+}
+
+.titulo{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+}
+
+.titulo h2{
+    margin:0;
+}
+
+.historial-btn{
+    width:110px;
+    height:40px;
+    border:none;
+    cursor:pointer;
+    border-radius:8px;
+    background:#444;
+    color:white;
+}
+
+.pantalla{
+    background:#222;
+    color:white;
+    height:80px;
+    border-radius:10px;
+    padding:15px;
+    text-align:right;
+    font-size:38px;
+    overflow:hidden;
+    margin-bottom:10px;
+}
+
+.botones{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+}
+
+button{
+    height:60px;
+    font-size:22px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+.numero{
+    background:#efefef;
+}
+
+.numero:hover{
+    background:#e2e2e2;
+}
+
+.operador{
+    background:#d7d7d7;
+}
+
+.operador:hover{
+    background:#c8c8c8;
+}
+
+.igual{
+    background:#ff9800;
+    color:white;
+}
+
+.igual:hover{
+    background:#f28a00;
+}
+
+.historial{
+    margin-top:15px;
+    max-height:250px;
+    overflow:auto;
+    border-top:1px solid #ddd;
+    padding-top:10px;
+}
+
+.item{
+    padding:6px;
+    border-bottom:1px solid #eee;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="calculadora">
+
+<div class="titulo">
+
+<h2>Calculadora</h2>
+
+<form method="POST">
+    <button
+        class="historial-btn"
+        name="tecla"
+        value="HISTORIAL">
+        Historial
+    </button>
+</form>
+
+</div>
+
+<div class="pantalla">
+
+{{ expresion if expresion else "0" }}
+
+</div>
+
+<form method="POST">
+
+<div class="botones">
+
+<button class="operador" name="tecla" value="C">C</button>
+<button class="operador" name="tecla" value="⌫">⌫</button>
+<button class="operador" name="tecla" value="^">xʸ</button>
+<button class="operador" name="tecla" value="/">÷</button>
+
+<button class="numero" name="tecla" value="7">7</button>
+<button class="numero" name="tecla" value="8">8</button>
+<button class="numero" name="tecla" value="9">9</button>
+<button class="operador" name="tecla" value="*">×</button>
+
+<button class="numero" name="tecla" value="4">4</button>
+<button class="numero" name="tecla" value="5">5</button>
+<button class="numero" name="tecla" value="6">6</button>
+<button class="operador" name="tecla" value="-">−</button>
+
+<button class="numero" name="tecla" value="1">1</button>
+<button class="numero" name="tecla" value="2">2</button>
+<button class="numero" name="tecla" value="3">3</button>
+<button class="operador" name="tecla" value="+">+</button>
+
+<button class="numero" name="tecla" value="0">0</button>
+<button class="numero" name="tecla" value=".">.</button>
+<button class="igual" name="tecla" value="=">=</button>
+
+</div>
+
+</form>
+
+{% if mostrar_historial %}
+
+<div class="historial">
+
+<h3>Historial</h3>
+
+{% for item in historial[::-1] %}
+<div class="item">
+{{ item }}
+</div>
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+</div>
+
+</body>
+</html>
+"""
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+
+    global mostrar_historial
+    global ultimo_fue_resultado
+
+    if request.method == "POST":
+
+        tecla = request.form["tecla"]
+
+        if tecla == "HISTORIAL":
+
+            mostrar_historial = not mostrar_historial
+
+        elif tecla == "C":
+
+            calculadora.limpiar()
+
+        elif tecla == "⌫":
+
+            calculadora.borrar()
+
+        elif tecla == "^":
+
+            if calculadora.expresion == "Error":
+                calculadora.limpiar()
+
+            calculadora.agregar("**")
+
+            ultimo_fue_resultado = False
+
+        elif tecla == "=":
+
+            expresion_original = calculadora.expresion
+
+            resultado = calculadora.calcular()
+
+            historial.append(
+                f"{expresion_original} = {resultado}"
+            )
+
+            calculadora.expresion = resultado
+
+            ultimo_fue_resultado = True
+
+        else:
+
+            if calculadora.expresion == "Error":
+                calculadora.limpiar()
+
+            if tecla.isdigit() and ultimo_fue_resultado:
+                calculadora.limpiar()
+
+            calculadora.agregar(tecla)
+
+            ultimo_fue_resultado = False
+
+    return render_template_string(
+        HTML,
+        expresion=calculadora.expresion,
+        historial=historial,
+        mostrar_historial=mostrar_historial
+    )
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
